@@ -507,7 +507,6 @@ long ion_dma_op(struct ion_client *client, struct ion_dma_param *param,
 #endif
 
 	struct ion_handle *kernel_handle;
-
 	kernel_handle = ion_drv_get_handle(client, param->handle,
 					   param->kernel_handle, from_kernel);
 	if (IS_ERR(kernel_handle)) {
@@ -517,7 +516,6 @@ long ion_dma_op(struct ion_client *client, struct ion_dma_param *param,
 
 	mutex_lock(&client->lock);
 	buffer = kernel_handle->buffer;
-
 	table = buffer->sg_table;
 	npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
 
@@ -629,11 +627,25 @@ void ion_cache_flush_all(void)
 			 MMPROFILE_FLAG_END, 1, 1);
 }
 
+int ion_check_user_va(void *va, size_t size)
+{
+	struct vm_area_struct *vma;
+	unsigned long va_add = (unsigned long)va;
+	int ret = 0;
+
+	down_read(&current->mm->mmap_sem);
+	vma = find_vma(current->mm, va_add);
+	if ((!vma) || (vma->vm_start > va_add) || (vma->vm_end < va_add))
+		ret = -1;
+	up_read(&current->mm->mmap_sem);
+
+	return ret;
+}
+
 static long ion_sys_dma_op(struct ion_client *client,
 			   struct ion_dma_param *param, int from_kernel)
 {
 	long ret = 0;
-
 	switch (param->dma_type) {
 	case ION_DMA_MAP_AREA:
 	case ION_DMA_UNMAP_AREA:
@@ -641,10 +653,18 @@ static long ion_sys_dma_op(struct ion_client *client,
 		ion_dma_op(client, param, from_kernel);
 		break;
 	case ION_DMA_MAP_AREA_VA:
+		if (ion_check_user_va(param->va, (size_t)param->size) != 0) {
+			ret = -1;
+			break;
+		}
 		ion_dma_map_area_va(param->va, (size_t)param->size,
 				    param->dma_dir);
 		break;
 	case ION_DMA_UNMAP_AREA_VA:
+		if (ion_check_user_va(param->va, (size_t)param->size) != 0) {
+			ret = -1;
+			break;
+		}
 		ion_dma_unmap_area_va(param->va, (size_t)param->size,
 				      param->dma_dir);
 		break;
@@ -652,6 +672,10 @@ static long ion_sys_dma_op(struct ion_client *client,
 		ion_cache_flush_all();
 		break;
 	case ION_DMA_FLUSH_BY_RANGE_USE_VA:
+		if (ion_check_user_va(param->va, (size_t)param->size) != 0) {
+			ret = -1;
+			break;
+		}
 		ion_cache_sync_flush((unsigned long)param->va,
 				     (size_t)param->size,
 				     ION_DMA_FLUSH_BY_RANGE_USE_VA);
@@ -717,9 +741,6 @@ static long ion_sys_ioctl(struct ion_client *client, unsigned int cmd,
 			param.get_phys_param.phy_addr = (unsigned int)phy_addr;
 			ion_drv_put_kernel_handle(kernel_handle);
 		}
-		break;
-	case ION_SYS_GET_CLIENT:
-		param.get_client_param.client = (unsigned long)client;
 		break;
 	case ION_SYS_SET_CLIENT_NAME:
 		ion_sys_copy_client_name(param.client_name_param.name,
