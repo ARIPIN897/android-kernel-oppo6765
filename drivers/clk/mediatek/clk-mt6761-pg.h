@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __DRV_CLK_MT6765_PG_H
-#define __DRV_CLK_MT6765_PG_H
+#ifndef __DRV_CLK_MT6761_PG_H
+#define __DRV_CLK_MT6761_PG_H
 
 enum subsys_id {
 	SYS_MD1 = 0,
@@ -20,13 +20,12 @@ enum subsys_id {
 	SYS_DPY = 2,
 	SYS_DIS = 3,
 	SYS_MFG = 4,
-	SYS_ISP = 5,
-	SYS_IFR = 6,
-	SYS_MFG_CORE0 = 7,
-	SYS_MFG_ASYNC = 8,
-	SYS_CAM = 9,
-	SYS_VCODEC = 10,
-	NR_SYSS = 11,
+	SYS_IFR = 5,
+	SYS_MFG_CORE0 = 6,
+	SYS_MFG_ASYNC = 7,
+	SYS_CAM = 8,
+	SYS_VCODEC = 9,
+	NR_SYSS = 10,
 };
 
 enum mtcmos_op {
@@ -51,12 +50,6 @@ extern void switch_mfg_clk(int src);
 extern void subsys_if_on(void);
 extern void mtcmos_force_off(void);
 
-/*new arch*/
-extern void check_ven_clk_sts(void);
-extern void set_ven_bus_protect(void);
-extern void mm_clk_restore(void);
-extern void mfg_sts_check(void);
-extern void ven_clk_check(void);
 extern unsigned int mt_get_ckgen_freq(unsigned int ID);
 /*extern void aee_sram_printk(const char *fmt, ...);*/
 /*ram console api*/
