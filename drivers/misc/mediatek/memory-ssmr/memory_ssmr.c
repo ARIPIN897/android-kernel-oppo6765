@@ -1256,7 +1256,7 @@ static int __init ssmr_sanity(void)
 		 */
 		pr_err("[INIT FAIL]: cma is not inited\n");
 		err_msg = "SSMR sanity: CMA init fail\n";
-		goto out;
+		return -1;
 	}
 
 	total_target_size = get_total_target_size();
