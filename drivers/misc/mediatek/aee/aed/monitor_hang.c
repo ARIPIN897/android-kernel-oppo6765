@@ -92,6 +92,7 @@ static bool Hang_Detect_first;
 #define HD_INTER 30
 
 static int hd_detect_enabled;
+static int hd_zygote_stopped;
 static int hd_timeout = 0x7fffffff;
 static int hang_detect_counter = 0x7fffffff;
 static int dump_bt_done;
@@ -230,7 +231,37 @@ static ssize_t monitor_hang_write(struct file *filp, const char __user *buf,
 {
 
 	/* LOGV("%s\n", __func__); */
-	return 0;
+		char msg[8] = {0};
+	if (count >= 2) {
+		pr_info("hang_detect: invalid input\n");
+		return -EINVAL;
+	}
+	if (!buf) {
+		pr_info("hang_detect: invalid user buf\n");
+		return -EINVAL;
+	}
+	if (copy_from_user(msg, buf, count)) {
+		pr_info("hang_detect: failed to copy from user\n");
+		return -EFAULT;
+	}
+	if (strncmp(current->comm, "init", 4))
+		return  -EINVAL;
+	if (msg[0] == '0') {
+		hd_detect_enabled = false;
+		hd_zygote_stopped = true;
+		pr_info("hang_detect: disable by stop cmd\n");
+	} else if (msg[0] == '1') {
+		if (hd_zygote_stopped) {
+			hd_detect_enabled = true;
+			hd_zygote_stopped = false;
+			pr_info("hang_detect: enable by start cmd\n");
+		} else {
+			pr_info("hang_detect: zygote running\n");
+		}
+	} else {
+		pr_info("hang_detect: invalid control msg\n");
+	}
+	return count;
 }
 
 
