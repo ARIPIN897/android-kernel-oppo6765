@@ -842,30 +842,6 @@ static ssize_t ilitek_node_mp_lcm_off_test_read(struct file *filp, char __user *
     return ret;
 }
 
-static ssize_t ilitek_node_change_list_read(struct file *filp, char __user *buff, size_t size, loff_t *pos)
-{
-	u32 len = 0;
-
-	if (*pos != 0)
-		return 0;
-
-	mutex_lock(&idev->touch_mutex);
-
-	memset(g_user_buf, 0, USER_STR_BUFF * sizeof(unsigned char));
-
-	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "============= Change list ==============\n");
-	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "[Drive version] = %s\n", DRIVER_VERSION);
-	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "[Patch] SPI_ESD_GESTURE_PWD_ADDR    0x40054\n");
-	len += snprintf(g_user_buf + len, USER_STR_BUFF - len, "========================================\n");
-
-	if (copy_to_user((char *)buff, g_user_buf, len))
-		ipio_err("Failed to copy data to user space\n");
-
-	*pos += len;
-	mutex_unlock(&idev->touch_mutex);
-	return len;
-}
-
 static ssize_t ilitek_proc_fw_process_read(struct file *filp, char __user *buff, size_t size, loff_t *pos)
 {
     int ret = 0;
@@ -1055,10 +1031,6 @@ static ssize_t ilitek_node_ioctl_write(struct file *filp, const char *buff, size
         ilitek_tddi_ic_get_core_ver();
         ilitek_tddi_ic_get_tp_info();
         ilitek_tddi_ic_get_panel_info();
-    } else if (strcmp(cmd, "getchip") == 0) {
-        ilitek_ice_mode_ctrl(ENABLE, OFF);
-        ilitek_tddi_ic_get_info();
-        ilitek_ice_mode_ctrl(DISABLE, OFF);
     } else if (strcmp(cmd, "enableicemode") == 0) {
         if (data[1] == ON)
             ilitek_ice_mode_ctrl(ENABLE, ON);
@@ -1170,12 +1142,7 @@ static ssize_t ilitek_node_ioctl_write(struct file *filp, const char *buff, size
     } else if (strcmp(cmd, "dumpiramdata") == 0) {
         TPD_INFO("Start = 0x%x, End = 0x%x, Dump IRAM path = %s\n", data[1], data[2], DUMP_IRAM_PATH);
         ilitek_tddi_fw_dump_iram_data(data[1], data[2]);
-    } else if (strcmp(cmd, "dump") == 0) {
-        TPD_INFO("dump1 Start = 0x%x, End = 0x%x, Dump IRAM path = %s\n", data[1], data[2], DUMP_IRAM_PATH);
-		ilitek_ice_mode_ctrl(ENABLE, OFF);
-        ilitek_tddi_fw_print_iram_data(data[1], data[2]);
-		ilitek_ice_mode_ctrl(DISABLE, OFF);
-    }  else if (strcmp(cmd, "edge_plam_ctrl") == 0) {
+    } else if (strcmp(cmd, "edge_plam_ctrl") == 0) {
         ilitek_tddi_edge_palm_ctrl(data[1]);
     } else {
         ipio_err("Unknown command\n");
@@ -1185,7 +1152,7 @@ static ssize_t ilitek_node_ioctl_write(struct file *filp, const char *buff, size
     return size;
 }
 
-void ilitek_plat_irq_enable(void)
+static void ilitek_plat_irq_enable(void)
 {
     unsigned long flag;
 
@@ -1489,10 +1456,6 @@ typedef struct {
     bool isCreated;
 } proc_node_t;
 
-static struct file_operations proc_change_list_fops = {
-	.read = ilitek_node_change_list_read,
-};
-
 static struct file_operations proc_mp_lcm_on_test_fops = {
     .read = ilitek_node_mp_lcm_on_test_read,
 };
@@ -1563,7 +1526,6 @@ static proc_node_t proc_table[] = {
     {"show_raw_data", NULL, &proc_get_raw_data_fops, false},
     {"get_debug_mode_data", NULL, &proc_get_debug_mode_data_fops, false},
     {"rw_tp_reg", NULL, &proc_rw_tp_reg_fops, false},
-	{"change_list", NULL, &proc_change_list_fops, false},
 };
 
 #define NETLINK_USER 21

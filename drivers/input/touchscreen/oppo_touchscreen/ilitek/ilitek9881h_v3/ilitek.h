@@ -84,7 +84,7 @@
 #include "../../touchpanel_common.h"
 #include <soc/oppo/oppo_project.h>
 
-#define DRIVER_VERSION            "2.5.0.0"
+#define DRIVER_VERSION            "2.4.0.0"
 
 /* Options */
 #define TDDI_INTERFACE            BUS_SPI /* BUS_I2C(0x18) or BUS_SPI(0x1C) */
@@ -133,16 +133,16 @@
 #endif
 #define BIT(x)    (1 << (x))
 
-#define TPD_INFO(fmt, arg...) pr_err("ILITEK:[INFO]"TPD_DEVICE ": " fmt, ##arg)
+#define TPD_INFO(fmt, arg...) pr_err("[TP]"TPD_DEVICE ": " fmt, ##arg)
 #define TPD_DEBUG(a, arg...)\
 do{\
     if (LEVEL_DEBUG == tp_debug || ipio_debug_level)\
-        pr_err("ILITEK:[DEBUG]"TPD_DEVICE ": (%s, %d): " a, __func__, __LINE__, ##arg);\
+        pr_err("[TP]"TPD_DEVICE ": (%s, %d): " a, __func__, __LINE__, ##arg);\
 }while(0)
 
 #define ipio_err(fmt, arg...)                        \
 ({                                    \
-    pr_err("ILITEK:[ERR] (%s, %d): " fmt, __func__, __LINE__, ##arg);    \
+    pr_err("ILITEK: (%s, %d): " fmt, __func__, __LINE__, ##arg);    \
 })                                    \
 
 #define ERR_ALLOC_MEM(X)    ((IS_ERR(X) || X == NULL) ? 1 : 0)
@@ -295,7 +295,7 @@ enum ili_model_id {
 #define ESD_GESTURE_PWD             0xF38A94EF
 #define SPI_ESD_GESTURE_RUN         0x5B92E7F4
 #define I2C_ESD_GESTURE_RUN         0xA67C9DFE
-#define SPI_ESD_GESTURE_PWD_ADDR    0x40054
+#define SPI_ESD_GESTURE_PWD_ADDR    0x25FF8
 #define I2C_ESD_GESTURE_PWD_ADDR    0x40054
 
 /* Protocol */
@@ -413,7 +413,6 @@ struct ilitek_tddi_dev {
     bool report;
     bool gesture;
     bool gesture_demo_en;
-    bool need_dummy_cmd;
     int gesture_mode;
 
     /* Sending report data to users for the debug */
@@ -438,9 +437,7 @@ struct ilitek_tddi_dev {
     atomic_t tp_sw_mode;
     atomic_t mp_int_check;
     atomic_t esd_stat;
-	u8 *spi_tx;
-	u8 *spi_rx;
-    u8 *update_buf;
+
     int (*write)(void *data, int len);
     int (*read)(void *data, int len);
     int (*spi_write_then_read)(struct spi_device *spi, const void *txbuf, unsigned n_tx, void *rxbuf, unsigned n_rx);
@@ -628,7 +625,6 @@ void ilitek_tddi_node_init(void);
 void ilitek_dump_data(void *data, int type, int len, int row_len, const char *name);
 void netlink_reply_msg(void *raw, int size);
 int katoi(char *str);
-void ilitek_tddi_fw_print_iram_data(u32 start, u32 size);
 
 bool ilitek_check_wake_up_state(u32 msecs);
 

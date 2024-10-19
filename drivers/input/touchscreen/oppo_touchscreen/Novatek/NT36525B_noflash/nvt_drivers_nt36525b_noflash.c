@@ -37,17 +37,17 @@ static struct timeval start, end;
 
 /****************** Start of Log Tag Declear and level define*******************************/
 #define TPD_DEVICE "novatek,nf_nt36525b"
-#define TPD_INFO(a, arg...)  pr_err("NVT-ts:[INFO]"TPD_DEVICE ": " a, ##arg)
+#define TPD_INFO(a, arg...)  pr_err("[TP]"TPD_DEVICE ": " a, ##arg)
 #define TPD_DEBUG(a, arg...)\
     do{\
         if (LEVEL_DEBUG == tp_debug)\
-            pr_err("NVT-ts:[DEBUG]"TPD_DEVICE ": " a, ##arg);\
+            pr_err("[TP]"TPD_DEVICE ": " a, ##arg);\
     }while(0)
 
 #define TPD_DETAIL(a, arg...)\
     do{\
         if (LEVEL_BASIC != tp_debug)\
-            pr_err("NVT-ts:[DETAIL]"TPD_DEVICE ": " a, ##arg);\
+            pr_err("[TP]"TPD_DEVICE ": " a, ##arg);\
     }while(0)
 
 #define TPD_DEBUG_NTAG(a, arg...)\
@@ -745,7 +745,6 @@ firmware into each partition.
 return:
         n.a.
 *******************************************************/
-/*
 static int32_t Write_Partition(struct chip_data_nt36525b *chip_info, const u8 *fwdata, size_t fwsize)
 {
     uint32_t list = 0;
@@ -804,8 +803,8 @@ out:
     kfree(len_array);
     return ret;
 }
-*/
 
+/*
 static int32_t Write_Partition(struct chip_data_nt36525b *chip_info, const u8 *fwdata, size_t fwsize)
 {
     uint32_t list = 0;
@@ -876,7 +875,7 @@ static int32_t Write_Partition(struct chip_data_nt36525b *chip_info, const u8 *f
 out:
     return ret;
 }
-
+*/
 
 static void nvt_bld_crc_enable(struct chip_data_nt36525b *chip_info)
 {
@@ -970,7 +969,6 @@ static void nvt_set_bld_crc_bank(struct chip_data_nt36525b *chip_info,
                                  uint32_t G_CHECKSUM_ADDR, uint32_t crc)
 {
     /* write destination address */
-	TPD_INFO("nvt_set_bld_crc_bank1:DES_ADDR = %d\n", DES_ADDR);
     nvt_set_page(chip_info, DES_ADDR);
     chip_info->fwbuf[0] = DES_ADDR & 0x7F;
     chip_info->fwbuf[1] = (SRAM_ADDR) & 0xFF;
@@ -979,14 +977,12 @@ static void nvt_set_bld_crc_bank(struct chip_data_nt36525b *chip_info,
     CTP_SPI_WRITE(chip_info->s_client, chip_info->fwbuf, 4);
 
     /* write length */
-	nvt_set_page(chip_info, LENGTH_ADDR);
     chip_info->fwbuf[0] = LENGTH_ADDR & 0x7F;
     chip_info->fwbuf[1] = (size) & 0xFF;
     chip_info->fwbuf[2] = (size >> 8) & 0xFF;
     CTP_SPI_WRITE(chip_info->s_client, chip_info->fwbuf, 3);
 
     /* write golden dlm checksum */
-	nvt_set_page(chip_info, G_CHECKSUM_ADDR);
     chip_info->fwbuf[0] = G_CHECKSUM_ADDR & 0x7F;
     chip_info->fwbuf[1] = (crc) & 0xFF;
     chip_info->fwbuf[2] = (crc >> 8) & 0xFF;
@@ -1020,74 +1016,6 @@ static void nvt_set_bld_hw_crc(struct chip_data_nt36525b *chip_info)
                          chip_info->trim_id_table.mmap->DLM_DES_ADDR, chip_info->bin_map[1].SRAM_addr,
                          chip_info->trim_id_table.mmap->DLM_LENGTH_ADDR, chip_info->bin_map[1].size,
                          chip_info->trim_id_table.mmap->G_DLM_CHECKSUM_ADDR, chip_info->bin_map[1].crc);
-}
-
-/*******************************************************
-Description:
-    Novatek touchscreen read BLD hw crc info function.
-This function will check crc results from register.
-
-return:
-    n.a.
-*******************************************************/
-static void nvt_read_bld_hw_crc(struct chip_data_nt36525b *chip_info)
-{
-    uint8_t buf[8] = {0};
-    uint32_t g_crc = 0, r_crc = 0;
-
-    /* CRC Flag */
-    nvt_set_page(chip_info, chip_info->trim_id_table.mmap->BLD_ILM_DLM_CRC_ADDR);
-    buf[0] = chip_info->trim_id_table.mmap->BLD_ILM_DLM_CRC_ADDR & 0x7F;
-    buf[1] = 0x00;
-    CTP_SPI_READ(chip_info->s_client, buf, 2);
-    TPD_INFO("crc_done = %d, ilm_crc_flag = %d, dlm_crc_flag = %d\n",
-            (buf[1] >> 2) & 0x01, (buf[1] >> 0) & 0x01, (buf[1] >> 1) & 0x01);
-
-    /* ILM CRC */
-    nvt_set_page(chip_info, chip_info->trim_id_table.mmap->G_ILM_CHECKSUM_ADDR);
-    buf[0] = chip_info->trim_id_table.mmap->G_ILM_CHECKSUM_ADDR & 0x7F;
-    buf[1] = 0x00;
-    buf[2] = 0x00;
-    buf[3] = 0x00;
-    buf[4] = 0x00;
-    CTP_SPI_READ(chip_info->s_client, buf, 5);
-    g_crc = buf[1] | (buf[2] << 8) | (buf[3] << 16) | (buf[4] << 24);
-
-    nvt_set_page(chip_info, chip_info->trim_id_table.mmap->R_ILM_CHECKSUM_ADDR);
-    buf[0] = chip_info->trim_id_table.mmap->R_ILM_CHECKSUM_ADDR & 0x7F;
-    buf[1] = 0x00;
-    buf[2] = 0x00;
-    buf[3] = 0x00;
-    buf[4] = 0x00;
-    CTP_SPI_READ(chip_info->s_client, buf, 5);
-    r_crc = buf[1] | (buf[2] << 8) | (buf[3] << 16) | (buf[4] << 24);
-
-    TPD_INFO("ilm: bin crc = 0x%08X, golden = 0x%08X, result = 0x%08X\n",
-            chip_info->bin_map[0].crc, g_crc, r_crc);
-
-    /* DLM CRC */
-    nvt_set_page(chip_info, chip_info->trim_id_table.mmap->G_DLM_CHECKSUM_ADDR);
-    buf[0] = chip_info->trim_id_table.mmap->G_DLM_CHECKSUM_ADDR & 0x7F;
-    buf[1] = 0x00;
-    buf[2] = 0x00;
-    buf[3] = 0x00;
-    buf[4] = 0x00;
-    CTP_SPI_READ(chip_info->s_client, buf, 5);
-    g_crc = buf[1] | (buf[2] << 8) | (buf[3] << 16) | (buf[4] << 24);
-
-    nvt_set_page(chip_info, chip_info->trim_id_table.mmap->R_DLM_CHECKSUM_ADDR);
-    buf[0] = chip_info->trim_id_table.mmap->R_DLM_CHECKSUM_ADDR & 0x7F;
-    buf[1] = 0x00;
-    buf[2] = 0x00;
-    buf[3] = 0x00;
-    buf[4] = 0x00;
-    CTP_SPI_READ(chip_info->s_client, buf, 5);
-    r_crc = buf[1] | (buf[2] << 8) | (buf[3] << 16) | (buf[4] << 24);
-
-    TPD_INFO("dlm: bin crc = 0x%08X, golden = 0x%08X, result = 0x%08X\n",
-            chip_info->bin_map[1].crc, g_crc, r_crc);
-
-    return;
 }
 
 /*******************************************************
@@ -1143,7 +1071,6 @@ fail:
         retry++;
         if(unlikely(retry > 2) || chip_info->using_headfile) {
             TPD_INFO("error, retry=%d\n", retry);
-			nvt_read_bld_hw_crc(chip_info);
             break;
         }
     }
@@ -2116,7 +2043,7 @@ static int nvt_enable_headset_mode(struct chip_data_nt36525b *chip_info, bool en
 {
     int8_t ret = -1;
 
-    TPD_INFO("%s:enable = %d, chip_info->is_sleep_writed = %d\n", __func__,
+    TPD_DEBUG("%s:enable = %d, chip_info->is_sleep_writed = %d\n", __func__,
               enable, chip_info->is_sleep_writed);
 
     if (enable) {
@@ -3730,7 +3657,7 @@ OUT:
     }
     set_fs(old_fs);
 
-    snprintf(message, MESSAGE_SIZE, "%d errors. %s", err_cnt, err_cnt ? "" : "All test passed.");
+    snprintf(message, MESSAGE_SIZE, "%d errors. %s", err_cnt, buf);
     TPD_INFO("%d errors. %s", err_cnt, buf);
 
 RELEASE_DATA:

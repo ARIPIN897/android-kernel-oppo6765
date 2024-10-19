@@ -26,12 +26,11 @@
 #endif
 
 #include "../novatek_common.h"
-#include "oppo_spi.h"
-/*#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
 #include "mtk_spi.h"
 #else
 #include "oppo_spi.h"
-#endif*/
+#endif
 
 #define POINT_DATA_CHECKSUM      (1)
 #define POINT_DATA_CHECKSUM_LEN 65
