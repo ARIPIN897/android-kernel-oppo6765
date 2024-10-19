@@ -22,18 +22,20 @@
  **  oujinrong      2018/01/08     fix stage 1 machine with apdp boot failed
  **  oujinrong      2018/03/16     fix stage 2 machine boot failed
  **  Dongnan.Wu     2019/06/12     add 7150 platform support
+ **  Ping.Liu       2019/10/16     add 7250 platform support.
  ************************************************************************************/
 
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 
-#if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6763 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6771 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6779 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6765
+#if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6763 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6771 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6779 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6785 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6762 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6768 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6885
 #include <sec_boot_lib.h>
-#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150
+#include <linux/uaccess.h>
+#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150 \
+|| CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7250 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8250
 #include <linux/soc/qcom/smem.h>
 #else
 #include <linux/soc/qcom/smem.h>
-#include <linux/uaccess.h>
 #endif
 
 #include <linux/slab.h>
@@ -41,7 +43,8 @@
 #include <linux/fs.h>
 #include <linux/of_gpio.h>
 
-#if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150
+#if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150 \
+|| CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7250 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8250
 #include <linux/uaccess.h>
 #else
 #include <asm/uaccess.h>
@@ -81,6 +84,18 @@
 #define OEM_SEC_OVERRIDE_1_REG 0x7860C0
 #define OEM_OVERRIDE_1_ENABLED_VALUE 0x1
 
+#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7250
+#define OEM_SEC_BOOT_REG 0x7805E8
+#define OEM_SEC_ENABLE_ANTIROLLBACK_REG 0x7801E4
+#define OEM_SEC_OVERRIDE_1_REG 0x7860C0
+#define OEM_OVERRIDE_1_ENABLED_VALUE 0x1
+
+#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8250
+#define OEM_SEC_BOOT_REG 0x7805E8
+#define OEM_SEC_ENABLE_ANTIROLLBACK_REG 0x7801F4
+#define OEM_SEC_OVERRIDE_1_REG 0x7860C0
+#define OEM_OVERRIDE_1_ENABLED_VALUE 0x1
+
 #elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8953 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8976  /* msm8953, 8976pro */
 #define OEM_SEC_BOOT_REG 0xA0154
 #endif
@@ -90,14 +105,16 @@ static char* oppo_secure_common_dir_name = "oppo_secure_common";
 static struct secure_data *secure_data_ptr = NULL;
 static char g_fuse_value[FUSE_VALUE_LEN] = UNKNOW_FUSE_VALUE ;
 
-static secure_type_t get_secureType(void)
+secure_type_t get_secureType(void)
 {
         secure_type_t secureType = SECURE_BOOT_UNKNOWN;
 
 #if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 660 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 845 \
 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 670 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 710 \
 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 \
-|| CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150/* sdm660, sdm845, sdm670, sdm710, sdm855 sm6125 sm7150 */
+|| CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7250 \
+|| CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8250
+/* sdm660, sdm845, sdm670, sdm710, sdm855 sm6125 sm7150 sm7250 sm8250 */
 
         void __iomem *oem_config_base;
         uint32_t secure_oem_config1 = 0;
@@ -162,15 +179,6 @@ static secure_type_t get_secureType(void)
                 secureType = SECURE_BOOT_ON;
         }
 
-#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6765
-
-        if (g_hw_sbcen == 0) {
-                secureType = SECURE_BOOT_OFF;
-        } else {
-                secureType = SECURE_BOOT_ON;
-        }
-
-
 #elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6771
 
         if (g_hw_sbcen == 0) {
@@ -187,6 +195,35 @@ static secure_type_t get_secureType(void)
                 secureType = SECURE_BOOT_ON;
         }
 
+#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6785
+
+		if (g_hw_sbcen == 0) {
+				secureType = SECURE_BOOT_OFF;
+		} else {
+				secureType = SECURE_BOOT_ON;
+		}
+#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6762
+
+		if (g_hw_sbcen == 0) {
+				secureType = SECURE_BOOT_OFF;
+		} else {
+				secureType = SECURE_BOOT_ON;
+		}
+#elif CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6768
+
+				if (g_hw_sbcen == 0) {
+						secureType = SECURE_BOOT_OFF;
+				} else {
+						secureType = SECURE_BOOT_ON;
+				}
+
+#elif  CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6885
+
+        if (g_hw_sbcen == 0) {
+                secureType = SECURE_BOOT_OFF;
+        } else {
+                secureType = SECURE_BOOT_ON;
+        }
 #endif
 
         return secureType;
@@ -264,7 +301,8 @@ static ssize_t secureSNBound_read_proc(struct file *file, char __user *buf,
 
 #endif
 
-#if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150
+#if CONFIG_OPPO_BSP_SECCOM_PLATFORM == 855 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 6125 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7150 \
+|| CONFIG_OPPO_BSP_SECCOM_PLATFORM == 7250 || CONFIG_OPPO_BSP_SECCOM_PLATFORM == 8250
         if (get_secureType() == SECURE_BOOT_ON_STAGE_2) {
                 secureSNBound_state = SECURE_DEVICE_SN_BOUND_OFF;
         }
