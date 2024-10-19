@@ -642,7 +642,6 @@ int init_touch_interfaces(struct device *dev, bool flag_register_16bit)
     return 0;
 }
 
-#ifdef CONFIG_VMAP_STACK
 int32_t spi_read_write(struct spi_device *client, uint8_t *buf, size_t len, uint8_t *rbuf, SPI_RW rw)
 {
 
@@ -705,7 +704,7 @@ spi_out:
     return status;
 }
 
-#else
+#if 0
 /*******************************************************
 Description:
 	Novatek touchscreen spi read/write core function.
@@ -812,16 +811,10 @@ int spi_write_firmware(struct spi_device *client, u8 *fw, u32 *len_array, u8 arr
     u8 *buf = NULL;
     //unsigned	cs_change:1;
     struct spi_message m;
-    struct spi_transfer *t;
-
-    t = kzalloc(sizeof(struct spi_transfer)*array_len, GFP_KERNEL | GFP_DMA);
-    if (!t) {
-        TPD_INFO("error, no mem!");
-        return -ENOMEM;
-    }
+    struct spi_transfer t[array_len];
 
     spi_message_init(&m);
-    //memset(t, 0, sizeof(t));
+    memset(t, 0, sizeof(t));
 
     buf = fw;
     for (i = 0; i < array_len; i++) {
@@ -843,7 +836,6 @@ int spi_write_firmware(struct spi_device *client, u8 *fw, u32 *len_array, u8 arr
     if (unlikely(retry == 5)) {
         TPD_INFO("error, ret=%d\n", ret);
     }
-    kfree(t);
     return ret;
 }
 

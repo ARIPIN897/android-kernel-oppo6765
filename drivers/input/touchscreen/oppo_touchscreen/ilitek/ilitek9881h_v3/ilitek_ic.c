@@ -22,6 +22,13 @@
 
 #include "ilitek.h"
 
+#ifdef ODM_WT_EDIT
+//Longfei.Wang@ODM_WT.BSP.TP,2019/12/26,add for WT hardwareinfo
+#include <linux/hardware_info.h>
+extern char Ctp_name[HARDWARE_MAX_ITEM_LONGTH];  //64
+extern int g_tp_dev_vendor;
+#endif
+
 #define PROTOCL_VER_NUM        7
 static struct ilitek_protocol_info protocol_info[PROTOCL_VER_NUM] = {
     /* length -> fw, protocol, tp, key, panel, core, func, window, cdc, mp_info */
@@ -658,7 +665,19 @@ int ilitek_tddi_ic_get_fw_ver(void)
 
     TPD_INFO("Firmware version = %d.%d.%d.%d\n", buf[1], buf[2], buf[3], buf[4]);
     idev->chip->fw_ver = buf[1] << 24 | buf[2] << 16 | buf[3] << 8 | buf[4];
-
+#ifdef ODM_WT_EDIT
+//Longfei.Wang@ODM_WT.BSP.TP,2019/12/26,add for WT hardwareinfo
+    if (g_tp_dev_vendor == 1) {
+        sprintf(Ctp_name, "HLT,ILI9881H,FW:0x%x\n", buf[3]);
+    } else if (g_tp_dev_vendor == 2) {
+        sprintf(Ctp_name, "TXD,ILI9881H,FW:0x%x\n", buf[3]);
+    }  else if (g_tp_dev_vendor == 4) {
+        sprintf(Ctp_name, "TXD_BOE,ILI9881H,FW:0x%x\n", buf[3]);
+    } else {
+        TPD_INFO("Not fund touchscreen !");
+    }
+    TPD_INFO("ilitek_tddi_ic_get_fw_ver Ctp_name is : %s\n", Ctp_name);
+#endif
     snprintf(dev_version, MAX_DEVICE_VERSION_LENGTH, "%02X", buf[3]);
 
     if (idev->ts->panel_data.manufacture_info.version) {

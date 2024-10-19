@@ -2804,6 +2804,9 @@ static void mp_show_result(bool lcm_on)
         }
     }
 
+    csv_len += snprintf(csv + csv_len, CSV_FILE_SIZE - csv_len,
+                        "==============================================================================\n");
+
     dev_mkdir("/sdcard/TpTestReport", S_IRUGO | S_IWUSR);
     dev_mkdir("/sdcard/TpTestReport/screenOn", S_IRUGO | S_IWUSR);
     dev_mkdir("/sdcard/TpTestReport/screenOff", S_IRUGO | S_IWUSR);
@@ -2836,10 +2839,8 @@ static void mp_show_result(bool lcm_on)
     ret_fail_name = NORMAL_CSV_FAIL_NAME;
     if (idev->tp_type == TP_INNOLUX) {
         snprintf(tp_module, 32, "%s", "INX");
-    } else if (idev->tp_type == TP_AUO) {
-        snprintf(tp_module, 32, "%s", "AUO");
-    } else if (idev->tp_type == TP_TIANMA) {
-        snprintf(tp_module, 32, "%s", "TM");
+    } else if (idev->tp_type == TP_TXD) {
+        snprintf(tp_module, 32, "%s", "TXD");
     }
 
     if (core_mp.final_result == MP_FAIL)

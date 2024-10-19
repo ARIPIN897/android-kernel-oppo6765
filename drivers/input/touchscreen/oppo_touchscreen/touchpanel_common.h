@@ -30,7 +30,6 @@
 #include <soc/oppo/device_info.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
-#include "touchpanel_prevention.h"
 #include "util_interface/touch_interfaces.h"
 #include "tp_devices.h"
 
@@ -66,7 +65,6 @@
 #define Wgestrue            13  // W
 #define FingerprintDown     14
 #define FingerprintUp       15
-#define SingleTap           16
 
 #define FINGERPRINT_DOWN_DETECT 0X0f
 #define FINGERPRINT_UP_DETECT 0X1f
@@ -259,8 +257,6 @@ struct point_info {
     uint8_t  width_major;
     uint8_t  touch_major;
     uint8_t  status;
-    uint8_t  tx_press;
-    uint8_t  rx_press;
     touch_area type;
 };
 
@@ -283,7 +279,6 @@ struct panel_info {
     uint32_t TP_FW;                                 /*FW Version Read from IC*/
     tp_dev  tp_type;
     int    vid_len;                                 /*Length of tp name show in  test apk*/
-    u32    project_id;
     struct firmware_headfile firmware_headfile;     /*firmware headfile for noflash ic*/
     struct manufacture_info manufacture_info;       /*touchpanel device info*/
 };
@@ -436,6 +431,15 @@ struct fp_underscreen_info {
     uint16_t y;
 };
 
+typedef enum {
+    UNKNOWN_IC,
+    HIMAX83112A,
+    ILI9881H,
+    NT36525B,
+    HX83102D
+} TP_USED_IC;
+
+
 //#define CONFIG_OPPO_TP_APK please define this in arch/arm64/configs
 #ifdef CONFIG_OPPO_TP_APK
 
@@ -498,7 +502,6 @@ struct touchpanel_data {
     bool register_is_16bit;                             /*register is 16bit*/
     bool glove_mode_support;                            /*glove_mode support feature*/
     bool black_gesture_support;                         /*black_gesture support feature*/
-    bool single_tap_support;                            /*black_gesture support feature*/
     bool charger_pump_support;                          /*charger_pump support feature*/
     bool headset_pump_support;                          /*headset_pump support feature*/
     bool edge_limit_support;                            /*edge_limit support feature*/
@@ -518,10 +521,6 @@ struct touchpanel_data {
     bool auto_test_force_pass_support;                  /*auto test force pass in early project*/
     bool freq_hop_simulate_support;                     /*frequency hopping simulate feature*/
     bool external_touch_support;                        /*external key used for touch point report*/
-    bool kernel_grip_support;                           /*using grip function in kernel touch driver*/
-    bool kernel_grip_support_special;                   /*only for findX Q*/
-    bool new_set_irq_wake_support;                           /*if call enable_irq_wake, can not call disable_irq_nosync*/
-    bool screenoff_fingerprint_info_support;            /*screen off fingerprint info coordinates need*/
 
     bool external_touch_status;                         /*shows external key status*/
     bool i2c_ready;                                     /*i2c resume status*/
@@ -538,10 +537,7 @@ struct touchpanel_data {
     bool irq_trigger_hdl_support;                         /*some no-flash ic (such as TD4330) need irq to trigger hdl*/
     bool in_test_process;                               /*flag whether in test process*/
     bool noise_modetest_support;                         /*noise mode test is used*/
-    bool lcd_wait_tp_resume_finished_support;           /*lcd will wait tp resume finished*/
-    bool report_flow_unlock_support;                    /*report flow is unlock, need to lock when all touch release*/
     bool fw_update_in_probe_with_headfile;
-    struct firmware                 *firmware_in_dts;
     u8   vk_bitmap ;                                     /*every bit declear one state of key "reserve(keycode)|home(keycode)|menu(keycode)|back(keycode)"*/
     vk_type  vk_type;                                   /*virtual_key type*/
     delta_state delta_state;
@@ -584,7 +580,6 @@ struct touchpanel_data {
     bool skip_suspend_operate;                          /*LCD and TP is in one chip,lcd power off in suspend at first,
                                                          can not operate i2c when tp suspend*/
     bool ps_status;                                     /*save ps status, ps near = 1, ps far = 0*/
-    bool resume_finished;                               /* whether tp resume finished */
     int noise_level;                                     /*save ps status, ps near = 1, ps far = 0*/
 
 #if defined(TPD_USE_EINT)
@@ -595,7 +590,6 @@ struct touchpanel_data {
 #endif
     struct monitor_data    monitor_data;
     struct mutex           mutex;                       /*mutex for lock i2c related flow*/
-    struct mutex           report_mutex;                /*mutex for lock input report flow*/
     struct mutex           mutex_earsense;
     struct completion      pm_complete;                 /*completion for control suspend and resume flow*/
     struct completion      fw_complete;                 /*completion for control fw update*/
@@ -639,18 +633,11 @@ struct touchpanel_data {
     struct earsense_proc_operations *earsense_ops;
     struct register_info reg_info;                      /*debug node for register length*/
     struct black_gesture_test gesture_test;             /*gesture test struct*/
-    struct kernel_grip_info *grip_info;                 /*grip setting and resources*/
 
     void                  *chip_data;                   /*Chip Related data*/
     void                  *private_data;                /*Reserved Private data*/
     char                  *earsense_delta;
     bool        disable_gesture_ctrl;   /*when lcd_trigger_load_tp_fw start no need to control gesture*/
-    bool        report_point_first_support;             /*if it happened baseline error,reporting point first or reporting error first. */
-    uint8_t     report_point_first_enable;              /*reporting points first enable :1 ,disable 0;*/
-    bool irq_need_dev_resume_ok;
-    bool report_rate_white_list_support;
-    int rate_ctrl_level;
-
 #ifdef CONFIG_OPPO_TP_APK
     APK_OPERATION *apk_op;
     APK_SWITCH_TYPE type_now;
@@ -712,12 +699,7 @@ struct oppo_touchpanel_operations {
     void (*set_noise_modetest)  (void *chip_data, bool enable);
     uint8_t (*get_noise_modetest)  (void *chip_data);
     void (*tp_queue_work_prepare) (void);       /*If the tp ic need do something, use this!*/
-    int    (*set_report_point_first)  (void *chip_data, uint32_t enable);
-    int (*get_report_point_first)  (void *chip_data);
-    void (*enable_kernel_grip)  (void *chip_data, struct kernel_grip_info *grip_info);          /*enable kernel grip in fw*/
-    int (*enable_single_tap)  (void *chip_data, bool enable);
     bool (*tp_irq_throw_away)  (void *chip_data);
-    void (*rate_white_list_ctrl) (void *chip_data, int value);
 };
 
 struct debug_info_proc_operations {
@@ -752,6 +734,7 @@ struct earsense_proc_operations {
 extern unsigned int tp_debug ;                                                            /*using for print debug log*/
 
 struct touchpanel_data *common_touch_data_alloc(void);
+extern int g_chip_name;
 
 int  common_touch_data_free(struct touchpanel_data *pdata);
 int  register_common_touch_device(struct touchpanel_data *pdata);
@@ -768,7 +751,7 @@ void esd_handle_switch(struct esd_information *esd_info, bool on);
 void clear_view_touchdown_flag(void);
 void tp_touch_btnkey_release(void);
 extern int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data);
-extern bool tp_judge_ic_match(char *tp_ic_name);
+TP_USED_IC tp_judge_ic_match(void);
 __attribute__((weak)) int request_firmware_select(const struct firmware **firmware_p, const char *name, struct device *device)
 {
     return 1;
@@ -777,14 +760,11 @@ __attribute__((weak)) int opticalfp_irq_handler(struct fp_underscreen_info *fp_t
 {
     return 0;
 }
-__attribute__((weak)) int notify_display_fpd(bool mode)
-{
-    return 0;
-}
 __attribute__((weak)) int get_lcd_status(void)
 {
     return 0;
 }
+
 bool is_oem_unlocked(void);
 int __init get_oem_verified_boot_state(void);
 

@@ -3,5 +3,5 @@
 #
 
 # Each configuration option enables a list of files.
-obj-$(CONFIG_TOUCHPANEL_ILITEK_ILITEK9881H_V3) += ilitek9881h_v3/
+obj-$(CONFIG_TOUCHSCREEN_HIMAX_CHIPSET) += hx83102d_noflash.o
 #endif

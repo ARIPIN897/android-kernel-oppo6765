@@ -170,7 +170,7 @@ static int ilitek_tddi_fw_iram_read(u8 *buf, u32 start, u32 end)
     return 0;
 }
 
-static void ilitek_tddi_fw_print_iram_data(u32 start, u32 size)
+void ilitek_tddi_fw_print_iram_data(u32 start, u32 size)
 {
     int i, len;
     int tmp = ipio_debug_level;
@@ -256,6 +256,53 @@ out:
     return 0;
 }
 
+
+static int ilitek_tddi_fw_iram_program(u32 start, u8 *w_buf, u32 w_len, u32 split_len)
+{
+	int i = 0, j = 0, addr = 0;
+	u32 end = start + w_len;
+
+	for (i = 0; i < MAX_HEX_FILE_SIZE; i++)
+		idev->update_buf[i] = 0xFF;
+
+	if (split_len != 0) {
+		for (addr = start, i = 0; addr < end; addr += split_len, i += split_len) {
+			if ((addr + split_len) > end)
+				split_len = end - addr;
+
+			idev->update_buf[0] = SPI_WRITE;
+			idev->update_buf[1] = 0x25;
+			idev->update_buf[2] = (char)((addr & 0x000000FF));
+			idev->update_buf[3] = (char)((addr & 0x0000FF00) >> 8);
+			idev->update_buf[4] = (char)((addr & 0x00FF0000) >> 16);
+
+			for (j = 0; j < split_len; j++)
+				idev->update_buf[5 + j] = w_buf[i + j];
+
+			if (idev->spi_write_then_read(idev->spi, idev->update_buf, split_len + 5, NULL, 0)) {
+				ipio_err("Failed to write data via SPI in host download (%x)\n", split_len + 5);
+				return -EIO;
+			}
+		}
+	} else {
+		idev->update_buf[0] = SPI_WRITE;
+		idev->update_buf[1] = 0x25;
+		idev->update_buf[2] = (char)((start & 0x000000FF));
+		idev->update_buf[3] = (char)((start & 0x0000FF00) >> 8);
+		idev->update_buf[4] = (char)((start & 0x00FF0000) >> 16);
+
+		memcpy(&idev->update_buf[5], w_buf, w_len);
+
+		/* It must be supported by platforms that have the ability to transfer all data at once. */
+		if (idev->spi_write_then_read(idev->spi, idev->update_buf, w_len + 5, NULL, 0) < 0) {
+			ipio_err("Failed to write data via SPI in host download (%x)\n", w_len + 5);
+			return -EIO;
+		}
+	}
+	return 0;
+}
+
+#if 0
 static int ilitek_tddi_fw_iram_program(u32 start, u32 size, u8 *w_buf)
 {
     int ret = 0;
@@ -286,7 +333,7 @@ static int ilitek_tddi_fw_iram_program(u32 start, u32 size, u8 *w_buf)
 
     return 0;
 }
-
+#endif
 static int ilitek_tddi_fw_iram_upgrade(u8 *pfw)
 {
     int i, ret = UPDATE_PASS;
@@ -301,6 +348,7 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw)
             idev->ignore_first_irq = false;
         }
         ret = ilitek_ice_mode_ctrl(ENABLE, OFF);
+		mdelay(20);
         if (ret < 0)
             return ret;
     } else {
@@ -327,7 +375,7 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw)
                      fbi[i].name, fbi[i].start, fbi[i].mem_start, fbi[i].len);
 
 
-            ilitek_tddi_fw_iram_program(fbi[i].mem_start, fbi[i].len, (fw_ptr + fbi[i].start));
+            ilitek_tddi_fw_iram_program(fbi[i].mem_start, (fw_ptr + fbi[i].start), fbi[i].len, SPI_UPGRADE_LEN);
 
             crc = CalculateCRC32(fbi[i].start, fbi[i].len - 4, fw_ptr);
             dma = 0;
@@ -336,7 +384,7 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw)
             TPD_INFO("%s CRC is %s (%x) : (%x)\n",
                      fbi[i].name, (crc != dma ? "Invalid !" : "Correct !"), crc, dma);
 
-            if (ret < 0 || crc != dma) {
+             if(ret < 0 || crc != dma) {
                 ilitek_tddi_fw_print_iram_data(fbi[i].mem_start, fbi[i].len);
                 return UPDATE_FAIL;
             }
@@ -350,6 +398,7 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw)
     mdelay(10);
     return ret;
 }
+
 
 static void ilitek_tddi_fw_update_block_info(u8 *pfw)
 {

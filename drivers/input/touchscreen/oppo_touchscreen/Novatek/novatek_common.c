@@ -19,16 +19,16 @@
 /*******LOG TAG Declear*****************************/
 
 #define TPD_DEVICE "nvt_common"
-#define TPD_INFO(a, arg...)  pr_err("[TP]"TPD_DEVICE ": " a, ##arg)
+#define TPD_INFO(a, arg...)  pr_err("NVT-ts:[INFO]"TPD_DEVICE ": " a, ##arg)
 #define TPD_DEBUG(a, arg...)\
     do{\
         if (tp_debug)\
-        pr_err("[TP]"TPD_DEVICE ": " a, ##arg);\
+        pr_err("NVT-ts:[DEBUG]:"TPD_DEVICE ": " a, ##arg);\
     }while(0)
 #define TPD_DETAIL(a, arg...)\
     do{\
         if (LEVEL_BASIC != tp_debug)\
-            pr_err("[TP]"TPD_DEVICE ": " a, ##arg);\
+            pr_err("NVT-ts:[DETAIL]"TPD_DEVICE ": " a, ##arg);\
     }while(0)
 
 /*********** nvt tool operate content***********************/
@@ -266,6 +266,8 @@ void nvt_limit_read(struct seq_file *s, struct touchpanel_data *ts)
     int32_t *doze_diff_rawdata_p = NULL, *doze_diff_rawdata_n = NULL;
     int32_t *lpwg_rawdata_p = NULL, *lpwg_rawdata_n = NULL;
     int32_t *lpwg_diff_rawdata_p = NULL, *lpwg_diff_rawdata_n = NULL;
+    int32_t *fdm_rawdata_p = NULL, *fdm_rawdata_n = NULL;
+    int32_t *fdm_diff_rawdata_p = NULL, *fdm_diff_rawdata_n = NULL;
     const struct firmware *fw = NULL;
     struct nvt_test_header *ph = NULL;
     int i = 0, j = 0;
@@ -297,6 +299,10 @@ void nvt_limit_read(struct seq_file *s, struct touchpanel_data *ts)
     lpwg_rawdata_n = (int32_t *)(fw->data + ph->array_LPWG_Rawdata_N_offset);
     lpwg_diff_rawdata_p = (int32_t *)(fw->data + ph->array_LPWG_Diff_P_offset);
     lpwg_diff_rawdata_n = (int32_t *)(fw->data + ph->array_LPWG_Diff_N_offset);
+    fdm_rawdata_p = (int32_t *)(fw->data + ph->array_FDM_Rawdata_P_offset);
+    fdm_rawdata_n = (int32_t *)(fw->data + ph->array_FDM_Rawdata_N_offset);
+    fdm_diff_rawdata_p = (int32_t *)(fw->data + ph->array_FDM_Diff_P_offset);
+    fdm_diff_rawdata_n = (int32_t *)(fw->data + ph->array_FDM_Diff_N_offset);
 
     seq_printf(s, "\n FW_Rawdata_P:");
     for (i = 0 ; i < ts->hw_res.RX_NUM; i++) {
@@ -504,6 +510,57 @@ void nvt_limit_read(struct seq_file *s, struct touchpanel_data *ts)
         }
     }
 
+    seq_printf(s, "\n fdm_X_Channel: %4d", ph->fdm_X_Channel);
+
+    if (ph->config_Lmt_FDM_Rawdata_P != 0) {
+        seq_printf(s, "\n config_Lmt_FDM_Rawdata_P: %4d", ph->config_Lmt_FDM_Rawdata_P);
+    } else {
+        seq_printf(s, "\n FDM_Rawdata_P:");
+        for (i = 0 ; i < ts->hw_res.RX_NUM; i++) {
+            seq_printf(s, "\n[%2d] ", i);
+            for (j = 0 ; j < ph->fdm_X_Channel; j++) {
+                seq_printf(s, "%4d, ", fdm_rawdata_p[i * ph->fdm_X_Channel + j]);
+            }
+        }
+    }
+
+    if (ph->config_Lmt_FDM_Rawdata_N != 0) {
+        seq_printf(s, "\n config_Lmt_FDM_Rawdata_N: %4d", ph->config_Lmt_FDM_Rawdata_N);
+    } else {
+        seq_printf(s, "\n FDM_Rawdata_N:");
+        for (i = 0 ; i < ts->hw_res.RX_NUM; i++) {
+            seq_printf(s, "\n[%2d] ", i);
+            for (j = 0 ; j < ph->fdm_X_Channel; j++) {
+                seq_printf(s, "%4d, ", fdm_rawdata_n[i * ph->fdm_X_Channel + j]);
+            }
+        }
+    }
+
+    seq_printf(s, "\n config_FDM_Noise_Test_Frame: %4d", ph->config_FDM_Noise_Test_Frame);
+
+    if (ph->config_Lmt_FDM_Diff_P != 0) {
+        seq_printf(s, "\n config_Lmt_FDM_Diff_P: %4d", ph->config_Lmt_FDM_Diff_P);
+    } else {
+        seq_printf(s, "\n FDM_Diff_P:");
+        for (i = 0 ; i < ts->hw_res.RX_NUM; i++) {
+            seq_printf(s, "\n[%2d] ", i);
+            for (j = 0 ; j < ph->fdm_X_Channel; j++) {
+                seq_printf(s, "%4d, ", fdm_diff_rawdata_p[i * ph->fdm_X_Channel + j]);
+            }
+        }
+    }
+
+    if (ph->config_Lmt_FDM_Diff_N != 0) {
+        seq_printf(s, "\n config_Lmt_FDM_Diff_N: %4d", ph->config_Lmt_FDM_Diff_N);
+    } else {
+        seq_printf(s, "\n FDM_Diff_N:");
+        for (i = 0 ; i < ts->hw_res.RX_NUM; i++) {
+            seq_printf(s, "\n[%2d] ", i);
+            for (j = 0 ; j < ph->fdm_X_Channel; j++) {
+                seq_printf(s, "%4d, ", fdm_diff_rawdata_n[i * ph->fdm_X_Channel + j]);
+            }
+        }
+    }
     seq_printf(s, "\n");
     release_firmware(fw);
 }
@@ -515,14 +572,9 @@ static int tp_auto_test_read_func(struct seq_file *s, void *v)
     struct touchpanel_data *ts = s->private;
     struct nvt_proc_operations *nvt_ops;
     const struct firmware *fw = NULL;
-    struct timespec now_time;
-    struct rtc_time rtc_now_time;
-    mm_segment_t old_fs;
-    uint8_t data_buf[128];
-    int fd = -1, ret = -1;
+    int ret = -1;
 
-    struct nvt_testdata nvt_testdata =
-    {
+    struct nvt_testdata nvt_testdata = {
         .TX_NUM = 0,
         .RX_NUM = 0,
         .fd = -1,
@@ -551,42 +603,23 @@ static int tp_auto_test_read_func(struct seq_file *s, void *v)
         esd_handle_switch(&ts->esd_info, false);
     }
 
-    //step2: create a file to store test data in /sdcard/Tp_Test
-    getnstimeofday(&now_time);
-    rtc_time_to_tm(now_time.tv_sec, &rtc_now_time);
-    snprintf(data_buf, 128, "/sdcard/TpTestReport/screenOn/tp_testlimit_%02d%02d%02d-%02d%02d%02d-utc.csv",
-            (rtc_now_time.tm_year + 1900) % 100, rtc_now_time.tm_mon + 1, rtc_now_time.tm_mday,
-            rtc_now_time.tm_hour, rtc_now_time.tm_min, rtc_now_time.tm_sec);
-    old_fs = get_fs();
-    set_fs(KERNEL_DS);
-    sys_mkdir("/sdcard/TpTestReport", 0666);
-    sys_mkdir("/sdcard/TpTestReport/screenOn", 0666);
-    fd = sys_open(data_buf, O_WRONLY | O_CREAT | O_TRUNC, 0);
-    if (fd < 0) {
-        TPD_INFO("Open log file '%s' failed.\n", data_buf);
-        set_fs(old_fs);
-        mutex_unlock(&ts->mutex);
-        enable_irq(ts->irq);
-
-        return 0;
-    }
-
-    //step3:request test limit data from userspace
+    //step2:request test limit data from userspace
     ret = request_firmware(&fw, ts->panel_data.test_limit_name, ts->dev);
     if (ret < 0) {
         TPD_INFO("Request firmware failed - %s (%d)\n", ts->panel_data.test_limit_name, ret);
         seq_printf(s, "No limit IMG\n");
-        sys_close(fd);
-        set_fs(old_fs);
         mutex_unlock(&ts->mutex);
         enable_irq(ts->irq);
         return 0;
     }
 
     //step3:init syna_testdata
-    nvt_testdata.fd = fd;
+    //nvt_testdata.fd = fd;
     nvt_testdata.TX_NUM = ts->hw_res.TX_NUM;
     nvt_testdata.RX_NUM = ts->hw_res.RX_NUM;
+
+	TPD_INFO("nvt_testdata.TX_NUM = %d; nvt_testdata.RX_NUM = %d\n",nvt_testdata.TX_NUM,nvt_testdata.RX_NUM);
+	
     nvt_testdata.irq_gpio = ts->hw_res.irq_gpio;
     nvt_testdata.key_TX = ts->hw_res.key_TX;
     nvt_testdata.key_RX = ts->hw_res.key_RX;
@@ -595,11 +628,7 @@ static int tp_auto_test_read_func(struct seq_file *s, void *v)
 
     nvt_ops->auto_test(s, ts->chip_data, &nvt_testdata);
 
-    //step4: close file && release test limit firmware
-    if (fd >= 0) {
-        sys_close(fd);
-        set_fs(old_fs);
-    }
+    //step4: release test limit firmware
     release_firmware(fw);
 
     //step5: return to normal mode
