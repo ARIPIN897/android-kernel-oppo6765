@@ -2556,7 +2556,7 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 
 	spin_lock_irqsave(&cdev->lock, flags);
 	if (!dev->connected) {
-		dev->connected = 1;
+		dev->connected = 0;
 		schedule_work(&dev->work);
 	} else if (c->bRequest == USB_REQ_SET_CONFIGURATION &&
 						cdev->config) {
