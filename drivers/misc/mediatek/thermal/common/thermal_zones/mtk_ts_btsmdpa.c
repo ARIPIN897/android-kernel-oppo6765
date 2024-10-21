@@ -40,14 +40,14 @@
 int __attribute__ ((weak))
 IMM_IsAdcInitReady(void)
 {
-	pr_debug("E_WF: %s doesn't exist\n", __func__);
+	pr_notice("E_WF: %s doesn't exist\n", __func__);
 	return 0;
 }
 
 int __attribute__ ((weak))
 IMM_GetOneChannelValue(int dwChannel, int data[4], int *rawdata)
 {
-	pr_debug("E_WF: %s doesn't exist\n", __func__);
+	pr_notice("E_WF: %s doesn't exist\n", __func__);
 	return -1;
 }
 /*=============================================================
@@ -1131,7 +1131,7 @@ void mtkts_btsmdpa_prepare_table(int table_num)
 		break;
 	}
 
-	pr_debug("[Thermal/TZ/BTSMDPA] %s table_num=%d\n",
+	pr_notice("[Thermal/TZ/BTSMDPA] %s table_num=%d\n",
 						__func__, table_num);
 
 #if 0
@@ -1141,10 +1141,10 @@ void mtkts_btsmdpa_prepare_table(int table_num)
 		for (i = 0; i < (ntc_tbl_size
 					/ sizeof(struct BTSMDPA_TEMPERATURE));
 		     i++) {
-			pr_debug(
+			pr_notice(
 				"BTSMDPA_Temperature_Table[%d].APteryTemp =%d\n",
 				i, BTSMDPA_Temperature_Table[i].BTSMDPA_Temp);
-			pr_debug(
+			pr_notice(
 				"BTSMDPA_Temperature_Table[%d].TemperatureR=%d\n",
 				i, BTSMDPA_Temperature_Table[i].TemperatureR);
 		}
