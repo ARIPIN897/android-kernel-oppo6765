@@ -694,7 +694,6 @@ int mtkts_bts_get_hw_temp(void)
 
 		if (t_ret2 < 0)
 			pr_debug("[Thermal/TZ/BTS]wakeup_ta_algo out of memory\n");
-				t_ret2);
 	}
 
 	bts_cur_temp = t_ret;
