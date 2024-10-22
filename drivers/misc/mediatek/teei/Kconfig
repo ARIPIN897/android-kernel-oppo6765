@@ -45,7 +45,6 @@ config MICROTRUST_TZ_DRIVER
 config MICROTRUST_TZ_DRIVER_MTK_BOOTPROF
 	bool "Enable MTK bootprof"
 	depends on MICROTRUST_TZ_DRIVER
-<
 	default n
 	---help---
 	  Enables the support of Mediatek bootprof feature in Microtrust
