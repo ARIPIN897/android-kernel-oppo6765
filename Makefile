@@ -1,6 +1,6 @@
 VERSION = 4
 PATCHLEVEL = 9
-SUBLEVEL = 117
+SUBLEVEL = 119
 EXTRAVERSION =
 NAME = Roaring Lionus
 
@@ -410,6 +410,7 @@ KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 GCC_PLUGINS_CFLAGS :=
 TARGET_BUILD_VARIANT := user
 TARGET_PRODUCT := full_oppo6765
+TARGET_FLAVOR := oppo6765_19451
 CONFIG_OPPO_FINGERPRINT_PLATFORM := 6765
 
 #ifdef VENDOR_EDIT
@@ -588,6 +589,7 @@ export KBUILD_ARFLAGS
 export CONFIG_OPPO_FINGERPRINT_PLATFORM
 export TARGET_BUILD_VARIANT
 export TARGET_PRODUCT
+export TARGET_FLAVOR
 
 # When compiling out-of-tree modules, put MODVERDIR in the module
 # tree rather than in the kernel tree. The kernel tree might
@@ -1047,9 +1049,6 @@ KBUILD_CFLAGS	+= $(call cc-option,-fmerge-constants)
 
 # Make sure -fstack-check isn't enabled (like gentoo apparently did)
 KBUILD_CFLAGS  += $(call cc-option,-fno-stack-check,)
-
-# conserve stack if available
-KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 # disallow errors like 'EXPORT_GPL(foo);' with missing header
 KBUILD_CFLAGS   += $(call cc-option,-Werror=implicit-int)

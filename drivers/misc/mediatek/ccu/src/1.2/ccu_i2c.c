@@ -33,7 +33,7 @@
 #include "ccu_cmn.h"
 #include "ccu_i2c.h"
 #include "ccu_i2c_hw.h"
-
+#include "kd_camera_feature.h"/*for IMGSENSOR_SENSOR_IDX*/
 /**************************************************************************
  *
  **************************************************************************/
@@ -41,115 +41,88 @@
 #define I2C_BASE_OFS_CH1 (0x200)
 #define MAX_I2C_CMD_LEN 255
 #define CCU_I2C_APDMA_TXLEN 128
-#define CCU_I2C_MAIN_HW_DRVNAME  "ccu_i2c_main_hwtrg"
-#define CCU_I2C_SUB_HW_DRVNAME  "ccu_i2c_sub_hwtrg"
-#define CCU_I2C_MAIN3_HW_DRVNAME  "ccu_i2c_main3_hwtrg"
+#define CCU_I2C_BUS2_HW_DRVNAME  "ccu_i2c_2_hwtrg"
+#define CCU_I2C_BUS4_HW_DRVNAME  "ccu_i2c_4_hwtrg"
 
 /*--todo: check if need id-table & name, id of_match_table is given*/
-static int ccu_i2c_probe_main(struct i2c_client *client,
+static int ccu_i2c_probe_2(struct i2c_client *client,
 	const struct i2c_device_id *id);
-static int ccu_i2c_probe_main3(struct i2c_client *client,
+static int ccu_i2c_probe_4(struct i2c_client *client,
 	const struct i2c_device_id *id);
-static int ccu_i2c_probe_sub(struct i2c_client *client,
-	const struct i2c_device_id *id);
+
 static int ccu_i2c_remove(struct i2c_client *client);
+static uint32_t g_ccu_i2c_id = -1;
+static MBOOL ccu_i2c_enabled = MFALSE;
 static struct i2c_client *getCcuI2cClient(void);
+static struct i2c_client *g_ccuI2cClient2;
+static struct i2c_client *g_ccuI2cClient4;
 static inline u32 i2c_readl_dma(struct mt_i2c *i2c, u16 offset);
 static inline void i2c_writel_dma(u32 value, struct mt_i2c *i2c, u16 offset);
 static inline u16 i2c_readw(struct mt_i2c *i2c, u16 offset);
 static inline void i2c_writew(u16 value, struct mt_i2c *i2c, u16 offset);
 static void ccu_i2c_dump_info(struct mt_i2c *i2c);
 
-
-static enum CCU_I2C_CHANNEL g_ccuI2cChannel = CCU_I2C_CHANNEL_UNDEF;
-static struct i2c_client *g_ccuI2cClientMain;
-static struct i2c_client *g_ccuI2cClientMain3;
-static struct i2c_client *g_ccuI2cClientSub;
-static MBOOL ccu_i2c_enabled = MFALSE;
-
-static const struct i2c_device_id ccu_i2c_main_ids[] = {
-	{CCU_I2C_MAIN_HW_DRVNAME, 0},
+static const struct i2c_device_id ccu_i2c_2_ids[] = {
+	{CCU_I2C_BUS2_HW_DRVNAME, 0},
 	{}
 };
-static const struct i2c_device_id ccu_i2c_sub_ids[] = {
-	{CCU_I2C_SUB_HW_DRVNAME, 0},
+static const struct i2c_device_id ccu_i2c_4_ids[] = {
+	{CCU_I2C_BUS4_HW_DRVNAME, 0},
 	{}
 };
 
-static const struct i2c_device_id ccu_i2c_main3_ids[] = {
-	{CCU_I2C_MAIN3_HW_DRVNAME, 0},
-	{}
-};
 
 #ifdef CONFIG_OF
-static const struct of_device_id ccu_i2c_main_driver_of_ids[] = {
-	{.compatible = "mediatek,ccu_sensor_i2c_main_hw",},
+static const struct of_device_id ccu_i2c_2_driver_of_ids[] = {
+	{.compatible = "mediatek,ccu_sensor_i2c_2_hw",},
 	{}
 };
 
-static const struct of_device_id ccu_i2c_main3_driver_of_ids[] = {
-	{.compatible = "mediatek,ccu_sensor_i2c_main3_hw",},
-	{}
-};
-
-static const struct of_device_id ccu_i2c_sub_driver_of_ids[] = {
-	{.compatible = "mediatek,ccu_sensor_i2c_sub_hw",},
+static const struct of_device_id ccu_i2c_4_driver_of_ids[] = {
+	{.compatible = "mediatek,ccu_sensor_i2c_4_hw",},
 	{}
 };
 #endif
 
-struct i2c_driver ccu_i2c_main_driver = {
-	.probe = ccu_i2c_probe_main,
+struct i2c_driver ccu_i2c_2_driver = {
+	.probe = ccu_i2c_probe_2,
 	.remove = ccu_i2c_remove,
 	.driver = {
-		   .name = CCU_I2C_MAIN_HW_DRVNAME,
+		   .name = CCU_I2C_BUS2_HW_DRVNAME,
 		   .owner = THIS_MODULE,
 #ifdef CONFIG_OF
-		   .of_match_table = ccu_i2c_main_driver_of_ids,
+		   .of_match_table = ccu_i2c_2_driver_of_ids,
 #endif
 		   },
-	.id_table = ccu_i2c_main_ids,
+	.id_table = ccu_i2c_2_ids,
 };
 
-struct i2c_driver ccu_i2c_main3_driver = {
-	.probe = ccu_i2c_probe_main3,
+struct i2c_driver ccu_i2c_4_driver = {
+	.probe = ccu_i2c_probe_4,
 	.remove = ccu_i2c_remove,
 	.driver = {
-		   .name = CCU_I2C_MAIN3_HW_DRVNAME,
+		   .name = CCU_I2C_BUS4_HW_DRVNAME,
 		   .owner = THIS_MODULE,
 #ifdef CONFIG_OF
-		   .of_match_table = ccu_i2c_main3_driver_of_ids,
+		   .of_match_table = ccu_i2c_4_driver_of_ids,
 #endif
 		   },
-	.id_table = ccu_i2c_main3_ids,
-};
-
-struct i2c_driver ccu_i2c_sub_driver = {
-	.probe = ccu_i2c_probe_sub,
-	.remove = ccu_i2c_remove,
-	.driver = {
-		   .name = CCU_I2C_SUB_HW_DRVNAME,
-		   .owner = THIS_MODULE,
-#ifdef CONFIG_OF
-		   .of_match_table = ccu_i2c_sub_driver_of_ids,
-#endif
-		   },
-	.id_table = ccu_i2c_sub_ids,
+	.id_table = ccu_i2c_4_ids,
 };
 
 /*----------------------------------------------------------------------*/
 /* CCU Driver: i2c driver funcs                                         */
 /*----------------------------------------------------------------------*/
-static int ccu_i2c_probe_main(struct i2c_client *client,
+static int ccu_i2c_probe_2(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	/*int i4RetValue = 0;*/
-	LOG_DBG("[%s] Attach I2C for HW trriger g_ccuI2cClientMain %p\n",
+	LOG_DBG("[%s] Attach I2C for HW trriger g_ccuI2cClient2 %p\n",
 		"ccu_i2c_probe", client);
 
 	/* get sensor i2c client */
 	/*--todo: add subcam implementation*/
-	g_ccuI2cClientMain = client;
+	g_ccuI2cClient2 = client;
 
 	/* set I2C clock rate */
 	/*#ifdef CONFIG_MTK_I2C_EXTENSION*/
@@ -162,16 +135,16 @@ static int ccu_i2c_probe_main(struct i2c_client *client,
 	return 0;
 }
 
-static int ccu_i2c_probe_main3(struct i2c_client *client,
+static int ccu_i2c_probe_4(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	/*int i4RetValue = 0;*/
-	LOG_DBG("[%s] Attach I2C for HW trriger g_ccuI2cClientMain3 %p\n",
+	LOG_DBG("[%s] Attach I2C for HW trriger g_ccuI2cClient4 %p\n",
 		"ccu_i2c_probe", client);
 
 	/* get sensor i2c client */
 	/*--todo: add subcam implementation*/
-	g_ccuI2cClientMain3 = client;
+	g_ccuI2cClient4 = client;
 
 	/* set I2C clock rate */
 	/*#ifdef CONFIG_MTK_I2C_EXTENSION*/
@@ -183,20 +156,6 @@ static int ccu_i2c_probe_main3(struct i2c_client *client,
 	LOG_DBG("[ccu_i2c_probe] Attached!!\n");
 	return 0;
 }
-
-static int ccu_i2c_probe_sub(struct i2c_client *client,
-	const struct i2c_device_id *id)
-{
-	/*int i4RetValue = 0;*/
-	LOG_DBG("[%s] Attach I2C for HW trriger g_ccuI2cClientSub %p\n",
-		"ccu_i2c_probe", client);
-
-	g_ccuI2cClientSub = client;
-
-	LOG_DBG("[ccu_i2c_probe] Attached!!\n");
-	return 0;
-}
-
 
 static int ccu_i2c_remove(struct i2c_client *client)
 {
@@ -210,34 +169,27 @@ int ccu_i2c_register_driver(void)
 {
 	int i2c_ret = 0;
 
-	LOG_DBG("i2c_add_driver(&ccu_i2c_main_driver)++\n");
-	i2c_ret = i2c_add_driver(&ccu_i2c_main_driver);
-	LOG_DBG("i2c_add_driver(&ccu_i2c_main_driver), ret: %d--\n", i2c_ret);
-	LOG_DBG("i2c_add_driver(&ccu_i2c_main3_driver)++\n");
-	i2c_ret = i2c_add_driver(&ccu_i2c_main3_driver);
-	LOG_DBG("i2c_add_driver(&ccu_i2c_main3_driver), ret: %d--\n", i2c_ret);
-	LOG_DBG("i2c_add_driver(&ccu_i2c_sub_driver)++\n");
-	i2c_ret = i2c_add_driver(&ccu_i2c_sub_driver);
-	LOG_DBG("i2c_add_driver(&ccu_i2c_sub_driver), ret: %d--\n", i2c_ret);
-
+	LOG_DBG("i2c_add_driver(&ccu_i2c_2_driver)++\n");
+	i2c_ret = i2c_add_driver(&ccu_i2c_2_driver);
+	LOG_DBG("i2c_add_driver(&ccu_i2c_2_driver), ret: %d--\n", i2c_ret);
+	LOG_DBG("i2c_add_driver(&ccu_i2c_4_driver)++\n");
+	i2c_ret = i2c_add_driver(&ccu_i2c_4_driver);
+	LOG_DBG("i2c_add_driver(&ccu_i2c_4_driver), ret: %d--\n", i2c_ret);
 	return 0;
 }
 
 int ccu_i2c_delete_driver(void)
 {
-	i2c_del_driver(&ccu_i2c_main_driver);
-	i2c_del_driver(&ccu_i2c_main3_driver);
-	i2c_del_driver(&ccu_i2c_sub_driver);
+	i2c_del_driver(&ccu_i2c_2_driver);
+	i2c_del_driver(&ccu_i2c_4_driver);
 
 	return 0;
 }
 
-int ccu_i2c_set_channel(enum CCU_I2C_CHANNEL channel)
+int ccu_i2c_set_channel(uint32_t i2c_id)
 {
-	if ((channel == CCU_I2C_CHANNEL_MAINCAM) ||
-		(channel == CCU_I2C_CHANNEL_MAINCAM3) ||
-		(channel == CCU_I2C_CHANNEL_SUBCAM)) {
-		g_ccuI2cChannel = channel;
+	if (i2c_id == 2 || i2c_id == 4) {
+		g_ccu_i2c_id = i2c_id;
 		return 0;
 	} else
 		return -EFAULT;
@@ -250,7 +202,7 @@ int ccu_i2c_buf_mode_init(unsigned char i2c_write_id, int transfer_len)
 		return -1;
 	}
 
-	LOG_DBG_MUST("ccu_i2c_buf_mode_init done.\n");
+	LOG_DBG_MUST("%s done.\n", __func__);
 
 	return 0;
 }
@@ -329,23 +281,19 @@ int i2c_get_dma_buffer_addr(void **va,
 /*-------------------------------------------------------------------*/
 static struct i2c_client *getCcuI2cClient(void)
 {
-	switch (g_ccuI2cChannel) {
-	case CCU_I2C_CHANNEL_MAINCAM:
-		{
-			return g_ccuI2cClientMain;
-		}
-	case CCU_I2C_CHANNEL_MAINCAM3:
-		{
-			return g_ccuI2cClientMain3;
-		}
-	case CCU_I2C_CHANNEL_SUBCAM:
-		{
-			return g_ccuI2cClientSub;
-		}
+	switch (g_ccu_i2c_id) {
+	case 2:
+	{
+		return g_ccuI2cClient2;
+	}
+	case 4:
+	{
+		return g_ccuI2cClient4;
+	}
 	default:
-		{
-			return MNULL;
-		}
+	{
+		return MNULL;
+	}
 	}
 }
 
