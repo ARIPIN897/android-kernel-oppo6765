@@ -1256,7 +1256,7 @@ static int mlxsw_sp_port_fdb_dump(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!sfd_pl)
 		return -ENOMEM;
 
-	if = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
+	f = mlxsw_sp_vport_fid_get(mlxsw_sp_port);
 	vport_fid = f ? f->fid : 0;
 
 	mlxsw_reg_sfd_pack(sfd_pl, MLXSW_REG_SFD_OP_QUERY_DUMP, 0);
